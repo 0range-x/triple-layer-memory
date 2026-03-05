@@ -11,9 +11,10 @@
 
 ## 核心功能
 
-### 1. Session 自动压缩
-- token 达到 150k 时自动触发
-- 总结关键信息并写入记忆文件
+### 1. Session 自动压缩 + 自动切换（兼容版）
+- token 达到 150k 或上下文占用达到 80% 时触发
+- 先总结关键信息并写入记忆文件（可用时）
+- 再触发新会话切换提示，避免上下文爆满
 - 保留最近 50k tokens 原始对话
 
 ### 2. 记忆写入时机优化
@@ -68,7 +69,7 @@ bash skills/triple-layer-memory/scripts/init.sh
 
 1. **Session 启动时**：自动加载最近 2 天的日志和核心索引
 2. **关键时机**：自动写入记忆（完成任务、做出决策等）
-3. **Token 达到 150k**：自动压缩 session
+3. **Token 达到 150k 或上下文达到 80%**：自动压缩并触发会话切换
 4. **每周一次**：自动执行记忆衰减和归档
 
 ### 手动功能
@@ -133,11 +134,12 @@ python scripts/memory_decay.py
 
 检查当前 session 的 token 使用量（从 system warning 中获取）。
 
-如果达到 150k tokens：
+如果达到 150k tokens 或上下文达到 80%：
 1. 调用 `scripts/session_compress.py` 获取压缩提示
 2. 使用 LLM 总结对话历史中的关键信息
-3. 将总结写入 `memory/YYYY-MM-DD.md`
-4. 提醒用户 session 已压缩，可以继续使用
+3. 将总结写入 `memory/YYYY-MM-DD.md`（若无记忆系统则至少生成交接摘要）
+4. 调用 `scripts/session_rotate.py <used_tokens> <max_tokens> <channel>` 判断是否触发轮换
+5. 若触发，输出 `[NEW_SESSION] 上下文达到80%，自动切换新会话`
 ```
 
 ### Mem0 频道隔离
@@ -163,6 +165,7 @@ workspace/
 │   └── .archive/               # 归档目录
 └── scripts/
     ├── session_compress.py      # Session 自动压缩
+    ├── session_rotate.py        # 80%上下文触发会话轮换
     ├── auto_memory_write.py     # 自动记忆写入
     ├── memory_decay.py          # 记忆衰减和归档
     ├── memory_meta.py           # 元数据管理
@@ -230,10 +233,10 @@ workspace/
 
 ## 故障排查
 
-### Session 没有自动压缩
-- 检查 HEARTBEAT.md 是否包含 token 检查逻辑
-- 检查 scripts/session_compress.py 是否存在
-- 查看 system warning 中的 token 使用量
+### Session 没有自动压缩或自动切换
+- 检查 HEARTBEAT.md 是否包含 token 与上下文占用检查逻辑
+- 检查 scripts/session_compress.py 与 scripts/session_rotate.py 是否存在
+- 查看 system warning 中的 token 使用量和上下文占用率
 
 ### 记忆没有自动写入
 - 检查 scripts/auto_memory_write.py 是否存在

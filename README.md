@@ -4,7 +4,7 @@
 
 ## 特性
 
-- ✅ Session 自动压缩（150k tokens 触发）
+- ✅ Session 自动压缩 + 自动切换（150k 或 80% 上下文触发）
 - ✅ 记忆写入时机优化（关键时机立即写入）
 - ✅ 跨 Session 记忆连续性（智能加载）
 - ✅ 记忆遗忘机制（语义去重、高频升权、低权归档）
@@ -68,6 +68,7 @@ workspace/
 │   └── .archive/               # 归档目录
 └── scripts/
     ├── session_compress.py      # Session 自动压缩
+    ├── session_rotate.py        # 80%上下文触发会话轮换
     ├── auto_memory_write.py     # 自动记忆写入
     ├── memory_decay.py          # 记忆衰减和归档
     └── ...
