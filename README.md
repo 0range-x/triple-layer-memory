@@ -84,7 +84,7 @@ MIT License
 
 ## 作者
 
-小橘 (vulcanx_14970)
+ ([小橘](https://x.com/maru_49940))
 
 ## 致谢
 
