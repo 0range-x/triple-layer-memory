@@ -6,7 +6,7 @@
 
 - ✅ **Session 自动压缩 + 自动切换**（150k 或 80% 上下文触发）
 - ✅ **Session 交接机制**（防止记忆断层）
-- ✅ **定时任务 Sub-agent 化**（HEARTBEAT 不直接跑长任务）
+- ✅ **质量门控**（每条输出都打分，< 7 分拦截）
 - ✅ **记忆写入时机优化**（关键时机立即写入）
 - ✅ **跨 Session 记忆连续性**（智能加载）
 - ✅ **记忆遗忘机制**（语义去重、高频升权、低权归档）
@@ -23,14 +23,15 @@
 - ③ 新 session 启动：优先读取交接上下文，获取旧 session 的关键信息
 - ④ 实时记忆写入：完成关键任务时立即写入，不等 session 结束
 
-### 2. HEARTBEAT 超时导致任务中断
-**问题：** 在 HEARTBEAT 中直接执行长任务，超时会导致任务中断。
+### 2. 低质量输出污染记忆
+**问题：** Agent 输出质量参差不齐，错误信息、无意义回复会污染记忆系统。
 
-**解决方案：定时任务 Sub-agent 化**
-- HEARTBEAT 不直接跑长任务
-- 通过 `spawn_subagent` 执行任务
-- 任务失败不影响主 session
-- 可以并行执行多个任务
+**解决方案：质量门控机制**
+- 每条输出都经过质量评分（准确性、完整性、可读性、安全性）
+- 分数 < 7：直接拦截，不输出
+- 分数 7-8：输出但标记警告
+- 分数 > 8：正常输出
+- **宁可不做，也不做烂**
 
 ## 架构
 
@@ -93,6 +94,7 @@ workspace/
     ├── session_compress.py      # Session 自动压缩
     ├── session_rotate.py        # 80%上下文触发会话轮换
     ├── session_handoff.py       # Session 交接脚本
+    ├── quality_gate.py          # 质量门控脚本
     ├── auto_memory_write.py     # 自动记忆写入
     ├── memory_decay.py          # 记忆衰减和归档
     └── ...
@@ -110,16 +112,14 @@ python scripts/session_handoff.py compress
 python scripts/session_handoff.py handoff [channel]
 ```
 
-### 定时任务 Sub-agent 化
-在 HEARTBEAT 中通过 sub-agent 执行长任务：
+### 质量门控
+评估输出质量，拦截低质量内容：
 ```python
-if should_run_scheduled_task():
-    spawn_subagent(
-        task="执行定时任务：[任务描述]",
-        mode="run",
-        runtime="subagent",
-        cleanup="delete"
-    )
+from scripts.quality_gate import evaluate_output, should_block
+
+score = evaluate_output(output_text)
+if should_block(score, threshold=7.0):
+    return "质量不达标，已拦截。"
 ```
 
 ## 贡献

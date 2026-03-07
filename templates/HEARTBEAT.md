@@ -42,26 +42,29 @@
 - 自动交接：新 session 启动时自动加载旧 session 的摘要
 - 无缝衔接：用户无需手动操作，系统自动处理
 
-## 定时任务执行规则
+## 质量门控机制
 
-**核心原则：HEARTBEAT 不直接跑长任务**
+**每条输出都必须经过质量评分**
 
-所有定时任务必须通过 sub-agent 执行：
+在输出前调用质量门控脚本：
 
 ```python
-# 示例：在 HEARTBEAT 中触发定时任务
-if should_run_scheduled_task():
-    # 不要直接执行任务，而是 spawn sub-agent
-    spawn_subagent(
-        task="执行定时任务：[任务描述]",
-        mode="run",
-        runtime="subagent",
-        cleanup="delete"
-    )
+from scripts.quality_gate import evaluate_output
+
+score = evaluate_output(output_text, context)
+
+if score < 7:  # 阈值：7/10
+    # 拦截低质量输出
+    return "质量不达标，已拦截。宁可不做，也不做烂。"
 ```
 
-**为什么这样做：**
-- 避免 heartbeat 超时导致任务中断
-- 任务失败不影响主 session
-- 可以并行执行多个任务
-- 便于监控和日志追踪
+**评分维度：**
+1. 准确性（是否符合事实）
+2. 完整性（是否回答了问题）
+3. 可读性（是否清晰易懂）
+4. 安全性（是否有风险）
+
+**拦截策略：**
+- 分数 < 7：直接拦截，不输出
+- 分数 7-8：输出但标记警告
+- 分数 > 8：正常输出
